@@ -150,7 +150,7 @@ function AddDialogs(){
       '<h4 id="myModalLabel">About</h4>'+
       '</div>'+
       '<div class="modal-body">'+
-      '<p><b>Version</b>: {DEVELOPMENT} '+
+      '<p><b>Version</b>: 2.13-beta6 '+
       '<b>by</b> Xavier Berger</p>'+
       'With the contribution of users sharing ideas and competences on Github.'+
       '<br>'+
@@ -211,6 +211,15 @@ function AddTopmenu(){
             '<li id="statisticsmenu"><a id="statisticslink" href="statistics.html">Statistics</a></li>'+
             '<li id="addonsmenu" class="hide"><a id="addonslink" href="addons.html">Add-ons</a></li>'+
             '<li id="optionsmenu"><a href="#Options" data-toggle="modal">Options</a></li>'+
+            '<li class="dropdown" id="thememenu">'+
+              '<a href="#" class="dropdown-toggle" data-toggle="dropdown"><span class="glyphicon glyphicon-adjust"></span> Theme <span class="caret"></span></a>'+
+              '<ul class="dropdown-menu" role="menu">'+
+                '<li class="dropdown-header">Select Theme</li>'+
+                '<li data-theme="default"><a href="#" onclick="setTheme(\'default\');return false;"><span class="theme-dot theme-dot-default"></span> Default</a></li>'+
+                '<li data-theme="dark"><a href="#" onclick="setTheme(\'dark\');return false;"><span class="theme-dot theme-dot-dark"></span> Dark</a></li>'+
+                '<li data-theme="modern"><a href="#" onclick="setTheme(\'modern\');return false;"><span class="theme-dot theme-dot-modern"></span> Modern</a></li>'+
+              '</ul>'+
+            '</li>'+
             '<li class="dropdown">' +
         '<a href="#" class="dropdown-toggle" data-toggle="dropdown">About <span class="caret"></span></a>' +
         '<ul class="dropdown-menu" role="menu">' +
