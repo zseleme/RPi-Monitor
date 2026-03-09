@@ -182,3 +182,23 @@ body.theme-modern .modal-footer { border-top-color: #e2e8f0; }
 .theme-dot-modern  { background: #38bdf8; }
 
 #thememenu .dropdown-menu li.active-theme > a { font-weight: bold; }
+
+/* Keep theme dropdown open on hover */
+#thememenu:hover > .dropdown-menu {
+  display: block;
+}
+#thememenu > a::after {
+  content: '';
+  display: block;
+  height: 10px;
+  position: absolute;
+  width: 100%;
+  left: 0;
+  bottom: -10px;
+}
+#thememenu .dropdown-menu {
+  margin-top: 0;
+}
+#thememenu {
+  position: relative;
+}
