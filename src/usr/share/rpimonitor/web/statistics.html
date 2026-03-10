@@ -1,80 +1,442 @@
-<!--
-# Copyright 2013-2014 - Xavier Berger - http://rpi-experiences.blogspot.fr/
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
--->
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <title>RPi-Monitor</title>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="RPi-Monitor">
-    <meta name="author" content="RPi-Experiences">
-    <meta http-equiv="Cache-control" content="public" />
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RPi Statistics</title>
+  <script>
+    tailwind = { config: {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter','system-ui','-apple-system','sans-serif'],
+            mono: ['"JetBrains Mono"','"Fira Code"','monospace']
+          }
+        }
+      }
+    }};
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <!-- Chart.js + Luxon time adapter -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1/dist/chartjs-adapter-luxon.umd.min.js"></script>
+  <!-- RRD reader (from local server) -->
+  <script src="js/javascriptrrd/binaryXHR.js"></script>
+  <script src="js/javascriptrrd/rrdFile.js"></script>
+  <style>
+    .card { transition: box-shadow 0.2s ease; }
+    .card:hover { box-shadow: 0 0 0 1px rgba(148,163,184,.12), 0 8px 32px rgba(0,0,0,.4); }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 9px; }
+    .metric-btn.active { background: #1e3a5f !important; border-color: #3b82f6 !important; color: #93c5fd !important; }
+    .rra-btn.active    { background: #0f2942 !important; border-color: #38bdf8 !important; color: #38bdf8 !important; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen antialiased">
 
-    <!-- CSS -->
-    <link href="./css/bootstrap.min.css" rel="stylesheet">
-    <link href="./css/rpimonitor.css" rel="stylesheet">
-    <link href="./css/rpimonitor-custom.css" rel="stylesheet">
-
-    <!-- Favicon-->
-    <link rel="shortcut icon" type="image/png" href="./img/favicon.png">
-  </head>
-
-  <body>
-
-    <!-- Fixed navbar -->
-    <div id='topmenu'></div>
-
-    <!-- Begin page content -->
-    <div class="alert alert-error hide" id="message"></div>
-    <div class="text-info page-title hide" id="pageTitle"></div>
-    <div class="container-fluid">
-      <i id="insertionPoint"></i>
-      <table id="infotable" border=0>
-        <tr><td></td></tr>
-      </table>
-      <div id="preloader" class="text-center"><img src="img/preloader.gif"></div>
-      <div id="mygraph"></div>
+  <!-- ── Header ─────────────────────────────────────────────── -->
+  <header class="sticky top-0 z-50 bg-slate-950/80 backdrop-blur border-b border-slate-800/60">
+    <div class="max-w-7xl mx-auto px-5 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-sm font-bold text-white leading-tight" id="hostname">DietPi</h1>
+          <p class="text-xs text-slate-500 leading-tight">Statistics</p>
+        </div>
+      </div>
+      <nav class="hidden md:flex items-center gap-1 text-xs font-medium">
+        <a href="dashboard.html" class="px-3 py-1.5 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors">Dashboard</a>
+        <a href="status.html"    class="px-3 py-1.5 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors">Status</a>
+        <span class="px-3 py-1.5 rounded-md bg-slate-800 text-slate-200">Statistics</span>
+      </nav>
+      <div class="flex items-center gap-1.5 bg-violet-950/60 border border-violet-900/50 rounded-full px-2.5 py-1">
+        <span class="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
+        <span class="text-xs font-medium text-violet-400">Historical</span>
+      </div>
     </div>
+  </header>
 
-    <!-- Fixed footer -->
-    <div id="footer"></div>
- 
-    <!-- Dialog place holder -->
-    <div id="dialogs"></div>
+  <!-- ── Layout ─────────────────────────────────────────────── -->
+  <div class="max-w-7xl mx-auto px-5 py-5 flex gap-4">
 
-    <!-- Placed at the end of the document so the pages load faster -->
-    <script src="./js/jquery.min.js"></script>
-    <script src="./js/bootstrap.min.js"></script>
+    <!-- Sidebar -->
+    <aside class="w-48 flex-shrink-0 hidden md:block">
+      <p class="text-xs font-semibold text-slate-600 uppercase tracking-widest mb-3 px-1">Metrics</p>
+      <div class="space-y-1" id="metric-list"></div>
+    </aside>
 
-    <script type="text/javascript" src="js/javascriptrrd/binaryXHR.js"></script>
-    <script type="text/javascript" src="js/javascriptrrd/rrdFile.js"></script>
-    <script type="text/javascript" src="js/javascriptrrd/rrdMultiFile.js"></script>
-    <script type="text/javascript" src="js/javascriptrrd/rrdFlotSupport.js"></script>
-    <script type="text/javascript" src="js/javascriptrrd/rrdFlot.js"></script>
-    <script type="text/javascript" src="js/javascriptrrd/rrdFilter.js"></script>
+    <!-- Main -->
+    <main class="flex-1 min-w-0 space-y-4">
 
-    <script type="text/javascript" src="js/flot/jquery.flot.min.js"></script>
-    <script type="text/javascript" src="js/flot/jquery.flot.selection.min.js"></script>
-    <script type="text/javascript" src="js/flot/jquery.flot.tooltip.min.js"></script>
+      <!-- Mobile metric picker -->
+      <div class="md:hidden overflow-x-auto">
+        <div class="flex gap-2 pb-1" id="metric-list-mobile"></div>
+      </div>
 
-    <script src="./js/rpimonitor.js" charset="utf-8"></script>
-    <script src="./js/rpimonitor.statistics.js" charset="utf-8"></script>
-    <script src="./js/jsqrencode.min.js"></script>
-    <script src="./js/rpimonitor-theme.js" charset="utf-8"></script>
-  </body>
+      <!-- Chart card -->
+      <div class="card bg-slate-900 rounded-2xl border border-slate-800/80 p-5">
+        <!-- Title + RRA buttons -->
+        <div class="flex flex-wrap items-start justify-between gap-3 mb-5">
+          <div>
+            <h2 class="text-base font-semibold text-white" id="chart-title">Select a metric</h2>
+            <p class="text-xs text-slate-500 mt-0.5" id="chart-subtitle">—</p>
+          </div>
+          <div class="flex gap-1.5 flex-wrap" id="rra-buttons"></div>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="hidden">
+          <div class="flex flex-col items-center justify-center py-20 gap-3">
+            <div class="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
+            <p class="text-xs text-slate-500">Loading data…</p>
+          </div>
+        </div>
+
+        <!-- Error -->
+        <div id="error-state" class="hidden">
+          <div class="flex items-center justify-center py-20">
+            <p class="text-sm text-red-400" id="error-msg">Failed to load data.</p>
+          </div>
+        </div>
+
+        <!-- Chart canvas -->
+        <div id="chart-wrapper" class="relative" style="height:380px">
+          <canvas id="chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Stats summary -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="stats-row"></div>
+
+    </main>
+  </div>
+
+  <!-- ── Footer ─────────────────────────────────────────────── -->
+  <footer class="border-t border-slate-800/60 mt-4 py-3 text-center">
+    <p class="text-xs text-slate-600">
+      <a href="https://github.com/zseleme/RPi-Monitor" class="hover:text-slate-400 transition-colors">RPi-Monitor</a>
+    </p>
+  </footer>
+
+  <script>
+  /* ── Metric definitions ─────────────────────────────────── */
+  const GRAPHS = [
+    {
+      id: 'cpu', title: 'CPU Load', icon: '⚡', subtitle: 'Load average (1/5/15 min)',
+      datasets: [
+        { rrd: 'load1',  label: '1 min',  color: '#38bdf8' },
+        { rrd: 'load5',  label: '5 min',  color: '#a78bfa' },
+        { rrd: 'load15', label: '15 min', color: '#fb7185' },
+      ],
+      yFormat: v => v.toFixed(2),
+    },
+    {
+      id: 'temperature', title: 'Temperature', icon: '🌡️', subtitle: 'SoC core temperature',
+      datasets: [{ rrd: 'soc_temp', label: 'Core Temp', color: '#fb923c', fill: true }],
+      yFormat: v => v.toFixed(1) + '°C',
+    },
+    {
+      id: 'memory', title: 'Memory', icon: '🧠', subtitle: 'RAM usage',
+      datasets: [
+        { rrd: 'memory_available', label: 'Available', color: '#34d399', fill: true },
+        { rrd: 'memory_free',      label: 'Free',      color: '#22d3ee' },
+      ],
+      yFormat: v => fmtMB(v),
+    },
+    {
+      id: 'swap', title: 'Swap', icon: '💾', subtitle: 'Swap usage',
+      datasets: [{ rrd: 'swap_used', label: 'Swap Used', color: '#fb923c', fill: true }],
+      yFormat: v => fmtMB(v),
+    },
+    {
+      id: 'storage-root', title: 'Disk /', icon: '🗂️', subtitle: 'Root partition',
+      datasets: [{ rrd: 'sdcard_root_used', label: 'Used', color: '#38bdf8', fill: true }],
+      yFormat: v => fmtMB(v),
+    },
+    {
+      id: 'storage-boot', title: 'Disk /boot', icon: '💿', subtitle: '/boot/firmware',
+      datasets: [{ rrd: 'boot_used', label: 'Used', color: '#22d3ee', fill: true }],
+      yFormat: v => fmtMB(v),
+    },
+    {
+      id: 'network', title: 'Network', icon: '🌐', subtitle: 'Ethernet traffic',
+      datasets: [
+        { rrd: 'net_send',     label: '↑ Upload',   color: '#38bdf8' },
+        { rrd: 'net_received', label: '↓ Download', color: '#34d399' },
+      ],
+      yFormat: v => fmtBytes(Math.abs(v)),
+    },
+    {
+      id: 'wifi', title: 'WiFi', icon: '📡', subtitle: 'WiFi traffic',
+      datasets: [
+        { rrd: 'wifi_send',     label: '↑ Upload',   color: '#a78bfa' },
+        { rrd: 'wifi_received', label: '↓ Download', color: '#fb7185' },
+      ],
+      yFormat: v => fmtBytes(Math.abs(v)),
+    },
+    {
+      id: 'entropy', title: 'Entropy', icon: '🎲', subtitle: 'Kernel entropy pool',
+      datasets: [{ rrd: 'entropy_pool', label: 'Pool (bits)', color: '#818cf8', fill: true }],
+      yFormat: v => Math.round(v) + ' bits',
+    },
+    {
+      id: 'uptime', title: 'Uptime', icon: '⏱️', subtitle: 'System uptime',
+      datasets: [{ rrd: 'uptime', label: 'Uptime', color: '#34d399', fill: true }],
+      yFormat: v => {
+        v = parseFloat(v);
+        if (v > 86400) return (v/86400).toFixed(1) + 'd';
+        if (v > 3600)  return (v/3600).toFixed(1) + 'h';
+        return Math.round(v/60) + 'm';
+      },
+    },
+  ];
+
+  const RRAs = [
+    { idx: 0, label: '1 Day'   },
+    { idx: 1, label: '2 Days'  },
+    { idx: 2, label: '2 Weeks' },
+    { idx: 3, label: '1 Month' },
+    { idx: 4, label: '1 Year'  },
+  ];
+
+  /* ── State ──────────────────────────────────────────────── */
+  let activeMetric = null;
+  let activeRRA    = parseInt(localStorage.getItem('rpiStatsRRA') || '0');
+  let chartInst    = null;
+
+  /* ── Formatters ─────────────────────────────────────────── */
+  function fmtMB(mb) {
+    mb = Math.abs(parseFloat(mb));
+    if (isNaN(mb)) return '—';
+    if (mb >= 1024) return (mb / 1024).toFixed(1) + ' GB';
+    return Math.round(mb) + ' MB';
+  }
+  function fmtBytes(b) {
+    b = Math.abs(parseFloat(b) || 0);
+    if (b >= 1e9) return (b/1e9).toFixed(2) + ' GB';
+    if (b >= 1e6) return (b/1e6).toFixed(1) + ' MB';
+    if (b >= 1e3) return (b/1e3).toFixed(0) + ' KB';
+    return Math.round(b) + ' B';
+  }
+
+  /* ── RRD helpers ────────────────────────────────────────── */
+  function fetchRRD(path) {
+    return new Promise((resolve, reject) => {
+      try {
+        FetchBinaryURLAsync(path, bf => resolve(bf), null);
+      } catch(e) { reject(e); }
+    });
+  }
+
+  function rrdToPoints(rrd, rraIdx) {
+    const rra     = rrd.getRRA(rraIdx);
+    const nRows   = rra.getNrRows();
+    const stepMs  = rra.getStep() * 1000;
+    const lastTs  = rrd.getLastUpdate() * 1000;
+    const firstTs = lastTs - (nRows - 1) * stepMs;
+    const points  = [];
+    for (let i = 0; i < nRows; i++) {
+      const val = rra.getEl(i, 0);
+      points.push({ x: firstTs + i * stepMs, y: (val !== null && isFinite(val)) ? val : null });
+    }
+    return points;
+  }
+
+  /* ── Chart ──────────────────────────────────────────────── */
+  function setLoading(show) {
+    document.getElementById('loading').classList.toggle('hidden', !show);
+    document.getElementById('chart-wrapper').style.visibility = show ? 'hidden' : 'visible';
+    document.getElementById('error-state').classList.add('hidden');
+  }
+
+  function setError(msg) {
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('chart-wrapper').style.visibility = 'hidden';
+    document.getElementById('error-state').classList.remove('hidden');
+    document.getElementById('error-msg').textContent = msg;
+  }
+
+  async function loadChart(metric, rraIdx) {
+    setLoading(true);
+    document.getElementById('chart-title').textContent    = metric.icon + ' ' + metric.title;
+    document.getElementById('chart-subtitle').textContent = metric.subtitle;
+
+    try {
+      const buffers  = await Promise.all(metric.datasets.map(ds => fetchRRD('stat/' + ds.rrd + '.rrd')));
+      const datasets = buffers.map((bf, i) => {
+        const rrd = new RRDFile(bf);
+        const ds  = metric.datasets[i];
+        const c   = ds.color;
+        return {
+          label:            ds.label,
+          data:             rrdToPoints(rrd, rraIdx),
+          borderColor:      c,
+          backgroundColor:  c + '1a',
+          fill:             ds.fill || false,
+          tension:          0.3,
+          borderWidth:      1.5,
+          pointRadius:      0,
+          pointHoverRadius: 4,
+          spanGaps:         false,
+        };
+      });
+
+      renderChart(datasets, metric);
+      renderStats(datasets, metric);
+      setLoading(false);
+    } catch(e) {
+      setError('Failed to load data: ' + (e.message || e));
+    }
+  }
+
+  function renderChart(datasets, metric) {
+    const ctx = document.getElementById('chart').getContext('2d');
+    if (chartInst) { chartInst.destroy(); chartInst = null; }
+
+    Chart.defaults.color          = '#64748b';
+    Chart.defaults.font.family    = 'Inter, system-ui, sans-serif';
+    Chart.defaults.font.size      = 11;
+
+    chartInst = new Chart(ctx, {
+      type: 'line',
+      data: { datasets },
+      options: {
+        responsive:          true,
+        maintainAspectRatio: false,
+        animation:           false,
+        interaction: { mode: 'index', axis: 'x', intersect: false },
+        scales: {
+          x: {
+            type: 'time',
+            ticks:  { maxTicksLimit: 8, color: '#475569' },
+            grid:   { color: 'rgba(148,163,184,.05)' },
+            border: { color: '#1e293b' },
+          },
+          y: {
+            ticks:  { callback: metric.yFormat, color: '#475569', maxTicksLimit: 6 },
+            grid:   { color: 'rgba(148,163,184,.05)' },
+            border: { color: '#1e293b' },
+          },
+        },
+        plugins: {
+          legend: {
+            position: 'top', align: 'end',
+            labels: { color: '#94a3b8', boxWidth: 12, boxHeight: 2, padding: 14, usePointStyle: true, pointStyle: 'line' },
+          },
+          tooltip: {
+            backgroundColor: '#1e293b',
+            borderColor:     '#334155',
+            borderWidth:     1,
+            titleColor:      '#94a3b8',
+            bodyColor:       '#e2e8f0',
+            padding:         10,
+            callbacks: { label: ctx => '  ' + ctx.dataset.label + ':  ' + metric.yFormat(ctx.parsed.y) },
+          },
+        },
+      },
+    });
+  }
+
+  function renderStats(datasets, metric) {
+    const row = document.getElementById('stats-row');
+    row.innerHTML = '';
+    datasets.forEach(ds => {
+      const vals = ds.data.map(p => p.y).filter(v => v !== null && isFinite(v));
+      if (!vals.length) return;
+      const last = vals[vals.length - 1];
+      const min  = Math.min(...vals);
+      const max  = Math.max(...vals);
+      const avg  = vals.reduce((a,b) => a+b, 0) / vals.length;
+      const fmt  = metric.yFormat;
+      const c    = ds.borderColor;
+      row.innerHTML += `
+        <div class="card bg-slate-900 rounded-xl border border-slate-800/80 p-4">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:${c}"></span>
+            <p class="text-xs font-semibold text-slate-400 truncate">${ds.label}</p>
+          </div>
+          <div class="grid grid-cols-2 gap-y-2 text-xs">
+            <div><p class="text-slate-600 mb-0.5">Current</p><p class="font-bold text-slate-100">${fmt(last)}</p></div>
+            <div><p class="text-slate-600 mb-0.5">Average</p><p class="font-semibold text-slate-300">${fmt(avg)}</p></div>
+            <div><p class="text-slate-600 mb-0.5">Min</p><p class="font-semibold text-emerald-400">${fmt(min)}</p></div>
+            <div><p class="text-slate-600 mb-0.5">Max</p><p class="font-semibold text-red-400">${fmt(max)}</p></div>
+          </div>
+        </div>`;
+    });
+  }
+
+  /* ── UI builders ────────────────────────────────────────── */
+  function selectMetric(metric) {
+    activeMetric = metric;
+    localStorage.setItem('rpiStatsMetric', metric.id);
+    document.querySelectorAll('.metric-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('[data-metric="' + metric.id + '"]').forEach(b => b.classList.add('active'));
+    loadChart(metric, activeRRA);
+  }
+
+  function selectRRA(rra) {
+    activeRRA = rra.idx;
+    localStorage.setItem('rpiStatsRRA', rra.idx);
+    document.querySelectorAll('.rra-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('[data-rra="' + rra.idx + '"]').forEach(b => b.classList.add('active'));
+    if (activeMetric) loadChart(activeMetric, activeRRA);
+  }
+
+  function buildUI() {
+    const list   = document.getElementById('metric-list');
+    const mobile = document.getElementById('metric-list-mobile');
+
+    GRAPHS.forEach(g => {
+      [
+        [list,   'metric-btn w-full text-left px-3 py-2.5 rounded-xl border border-transparent text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all flex items-center gap-2.5',
+                 `<span class="text-base leading-none">${g.icon}</span><span>${g.title}</span>`],
+        [mobile, 'metric-btn flex-shrink-0 px-3 py-1.5 rounded-full border border-slate-700 text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all whitespace-nowrap',
+                 g.icon + ' ' + g.title],
+      ].forEach(([parent, cls, html]) => {
+        const btn = document.createElement('button');
+        btn.className = cls;
+        btn.setAttribute('data-metric', g.id);
+        btn.innerHTML = html;
+        btn.addEventListener('click', () => selectMetric(g));
+        parent.appendChild(btn);
+      });
+    });
+
+    const rraContainer = document.getElementById('rra-buttons');
+    RRAs.forEach(rra => {
+      const btn = document.createElement('button');
+      btn.className = 'rra-btn px-3 py-1.5 rounded-lg border border-slate-700 text-xs font-medium text-slate-400 hover:text-sky-400 hover:border-sky-700 transition-all';
+      btn.setAttribute('data-rra', rra.idx);
+      btn.textContent = rra.label;
+      btn.addEventListener('click', () => selectRRA(rra));
+      rraContainer.appendChild(btn);
+    });
+  }
+
+  /* ── Init ───────────────────────────────────────────────── */
+  fetch('static.json').then(r => r.json()).then(d => {
+    document.getElementById('hostname').textContent = d.hostname || 'RPi';
+  }).catch(() => {});
+
+  buildUI();
+
+  // Restore active RRA button
+  const savedRRABtn = document.querySelector('[data-rra="' + activeRRA + '"]');
+  if (savedRRABtn) savedRRABtn.classList.add('active');
+
+  // Restore or default metric
+  const savedId     = localStorage.getItem('rpiStatsMetric') || GRAPHS[0].id;
+  const savedMetric = GRAPHS.find(g => g.id === savedId) || GRAPHS[0];
+  selectMetric(savedMetric);
+  </script>
+</body>
 </html>
