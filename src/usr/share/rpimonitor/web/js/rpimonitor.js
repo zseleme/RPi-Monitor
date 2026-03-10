@@ -212,7 +212,7 @@ function AddTopmenu(){
             '<li id="addonsmenu" class="hide"><a id="addonslink" href="addons.html">Add-ons</a></li>'+
             '<li id="optionsmenu"><a href="#Options" data-toggle="modal">Options</a></li>'+
             '<li class="dropdown" id="thememenu">'+
-              '<a href="#" class="dropdown-toggle" data-toggle="dropdown"><span class="glyphicon glyphicon-adjust"></span> Theme <span class="caret"></span></a>'+
+              '<a href="#" class="dropdown-toggle"><span class="glyphicon glyphicon-adjust"></span> Theme <span class="caret"></span></a>'+
               '<ul class="dropdown-menu" role="menu">'+
                 '<li class="dropdown-header">Select Theme</li>'+
                 '<li data-theme="default"><a href="#" onclick="setTheme(\'default\');return false;"><span class="theme-dot theme-dot-default"></span> Default</a></li>'+

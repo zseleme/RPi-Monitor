@@ -1,6 +1,6 @@
 // RPi-Monitor Theme Switcher
 
-var tailwindLoaded = false;
+var interLoaded = false;
 
 function setTheme(theme) {
   localStorage.setItem('rpiTheme', theme);
@@ -14,11 +14,12 @@ function applyTheme(theme) {
   if (theme === 'dark' || theme === 'modern') {
     document.body.classList.add('theme-' + theme);
   }
-  if (theme === 'modern' && !tailwindLoaded) {
-    var s = document.createElement('script');
-    s.src = 'https://cdn.tailwindcss.com';
-    document.head.appendChild(s);
-    tailwindLoaded = true;
+  if (theme === 'modern' && !interLoaded) {
+    var link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap';
+    document.head.appendChild(link);
+    interLoaded = true;
   }
 }
 
