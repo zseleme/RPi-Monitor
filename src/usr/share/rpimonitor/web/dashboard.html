@@ -390,7 +390,7 @@
       const el = $(id);
       if (!el) return;
       el.style.width = p + '%';
-      el.className = el.className.replace(/bg-\w+-\d+/, '');
+      el.classList.remove('bg-red-500', 'bg-amber-400');
       if (p >= crit)      el.classList.add('bg-red-500');
       else if (p >= warn) el.classList.add('bg-amber-400');
     }
