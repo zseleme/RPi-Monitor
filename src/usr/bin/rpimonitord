@@ -542,7 +542,9 @@ sub Run
       "/js/javascriptrrd/rrdMultiFile.js",
       "/js/javascriptrrd/rrdFile.js",
       "/js/javascriptrrd/rrdFlotSupport.js",
-      "/js/Sortable.1.6.1.min.js"
+      "/js/Sortable.1.6.1.min.js",
+      "/js/rpimonitor-theme.js",
+      "/dashboard.html"
     ));
   }
   $this->{'paths'} = \@paths;

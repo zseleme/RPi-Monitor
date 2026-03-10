@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RPi Dashboard</title>
+  <script>
+    tailwind = { config: {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter','system-ui','-apple-system','sans-serif'],
+            mono: ['"JetBrains Mono"','"Fira Code"','monospace']
+          }
+        }
+      }
+    }};
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    .bar { transition: width 0.6s cubic-bezier(.4,0,.2,1); }
+    .arc { transition: stroke-dashoffset 0.6s cubic-bezier(.4,0,.2,1), stroke 0.4s ease; }
+    .card { transition: box-shadow 0.2s ease, transform 0.15s ease; }
+    .card:hover { box-shadow: 0 0 0 1px rgba(148,163,184,.15), 0 8px 32px rgba(0,0,0,.4); transform: translateY(-1px); }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 9px; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen antialiased">
+
+  <!-- ── Header ──────────────────────────────────────────────────── -->
+  <header class="sticky top-0 z-50 bg-slate-950/80 backdrop-blur border-b border-slate-800/60">
+    <div class="max-w-7xl mx-auto px-5 py-3 flex items-center justify-between">
+
+      <!-- Brand -->
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+              d="M5 12h2m10 0h2M12 5v2m0 10v2M7.05 7.05l1.41 1.41m7.08 7.08 1.41 1.41M7.05 16.95l1.41-1.41m7.08-7.08 1.41-1.41"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-sm font-bold text-white leading-tight" id="hostname">DietPi</h1>
+          <p class="text-xs text-slate-500 leading-tight" id="processor-short">Raspberry Pi</p>
+        </div>
+      </div>
+
+      <!-- Center: nav links -->
+      <nav class="hidden md:flex items-center gap-1 text-xs font-medium">
+        <span class="px-3 py-1.5 rounded-md bg-slate-800 text-slate-200">Dashboard</span>
+        <a href="status.html" class="px-3 py-1.5 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors">Status</a>
+        <a href="statistics.html" class="px-3 py-1.5 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition-colors">Statistics</a>
+      </nav>
+
+      <!-- Right: clock + live indicator -->
+      <div class="flex items-center gap-4">
+        <div class="text-right hidden sm:block">
+          <p class="text-sm font-mono font-medium text-white tabular-nums" id="clock">--:--:--</p>
+          <p class="text-xs text-slate-500" id="date-display">---</p>
+        </div>
+        <div class="flex items-center gap-1.5 bg-emerald-950/60 border border-emerald-900/50 rounded-full px-2.5 py-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-xs font-medium text-emerald-400">Live</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Main grid ────────────────────────────────────────────────── -->
+  <main class="max-w-7xl mx-auto px-5 py-5 space-y-4">
+
+    <!-- Row 1: System / CPU / Temperature -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+      <!-- System Info -->
+      <div class="card bg-slate-900 rounded-2xl border border-slate-800/80 p-5">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">System</p>
+        <div class="space-y-3">
+          <div>
+            <p class="text-xs text-slate-600 mb-0.5">Processor</p>
+            <p class="text-sm font-medium text-slate-100 leading-snug" id="processor">—</p>
+          </div>
+          <div>
+            <p class="text-xs text-slate-600 mb-0.5">OS</p>
+            <p class="text-sm font-medium text-slate-100" id="distribution">—</p>
+          </div>
+          <div>
+            <p class="text-xs text-slate-600 mb-0.5">Kernel</p>
+            <p class="text-xs font-mono text-slate-400 break-all" id="kernel">—</p>
+          </div>
+          <div class="flex gap-4">
+            <div>
+              <p class="text-xs text-slate-600 mb-0.5">Uptime</p>
+              <p class="text-sm font-semibold text-sky-400" id="uptime">—</p>
+            </div>
+            <div>
+              <p class="text-xs text-slate-600 mb-0.5">Updates</p>
+              <p class="text-sm font-semibold" id="upgrade">—</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CPU -->
+      <div class="card bg-slate-900 rounded-2xl border border-slate-800/80 p-5">
+        <div class="flex items-center justify-between mb-4">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-widest">CPU</p>
+          <span class="text-xs font-mono bg-slate-800 text-slate-300 px-2 py-0.5 rounded-md" id="cpu-freq-badge">— MHz</span>
+        </div>
+
+        <!-- Load averages -->
+        <div class="grid grid-cols-3 gap-2 mb-4">
+          <div class="bg-slate-800/60 rounded-xl p-3 text-center">
+            <p class="text-2xl font-bold text-white tabular-nums" id="load1">—</p>
+            <p class="text-xs text-slate-500 mt-0.5">1 min</p>
+          </div>
+          <div class="bg-slate-800/60 rounded-xl p-3 text-center">
+            <p class="text-2xl font-bold text-white tabular-nums" id="load5">—</p>
+            <p class="text-xs text-slate-500 mt-0.5">5 min</p>
+          </div>
+          <div class="bg-slate-800/60 rounded-xl p-3 text-center">
+            <p class="text-2xl font-bold text-white tabular-nums" id="load15">—</p>
+            <p class="text-xs text-slate-500 mt-0.5">15 min</p>
+          </div>
+        </div>
+
+        <!-- CPU details -->
+        <div class="space-y-1.5 text-xs">
+          <div class="flex justify-between">
+            <span class="text-slate-500">Voltage</span>
+            <span class="font-mono text-slate-300" id="cpu-voltage">—</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">Governor</span>
+            <span class="font-mono text-slate-300" id="cpu-governor">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Temperature -->
+      <div class="card bg-slate-900 rounded-2xl border border-slate-800/80 p-5">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">Temperature</p>
+        <div class="flex items-center justify-center py-2">
+          <div class="relative w-36 h-36">
+            <svg class="w-36 h-36 -rotate-90" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="46" fill="none" stroke="#1e293b" stroke-width="8"/>
+              <circle cx="60" cy="60" r="46" fill="none" stroke-width="8"
+                stroke-linecap="round"
+                stroke-dasharray="289"
+                stroke-dashoffset="289"
+                id="temp-arc"
+                class="arc"
+                stroke="#22c55e"/>
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <span class="text-3xl font-bold tabular-nums" id="soc-temp">—</span>
+              <span class="text-xs text-slate-400">°C</span>
+            </div>
+          </div>
+        </div>
+        <p class="text-center text-xs mt-1 font-medium" id="temp-status">—</p>
+        <div class="flex justify-between text-xs text-center mt-3 px-2">
+          <div><span class="text-emerald-400 font-semibold">Cool</span><br><span class="text-slate-600">&lt;60°</span></div>
+          <div><span class="text-amber-400 font-semibold">Warm</span><br><span class="text-slate-600">60–75°</span></div>
+          <div><span class="text-red-400 font-semibold">Hot</span><br><span class="text-slate-600">&gt;75°</span></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Row 2: Memory / Swap / Storage -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+      <!-- Memory -->
+      <div class="card bg-slate-900 rounded-2xl border border-slate-800/80 p-5">
+        <div class="flex items-center justify-between mb-4">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-widest">RAM</p>
+          <span class="text-sm font-bold tabular-nums" id="mem-pct-badge">—%</span>
+        </div>
+        <div class="mb-4">
+          <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
+            <div class="h-full rounded-full bar bg-violet-500" id="mem-bar" style="width:0%"></div>
+          </div>
+          <div class="flex justify-between text-xs text-slate-500 mt-1.5">
+            <span id="mem-used-label">Used —</span>
+            <span id="mem-total-label">Total —</span>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-slate-800/60 rounded-xl p-3">
+            <p class="text-xs text-slate-500 mb-1">Used</p>
+            <p class="text-base font-bold text-violet-400" id="mem-used">—</p>
+          </div>
+          <div class="bg-slate-800/60 rounded-xl p-3">
+            <p class="text-xs text-slate-500 mb-1">Available</p>
+            <p class="text-base font-bold text-emerald-400" id="mem-available">—</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Swap -->
+      <div class="card bg-slate-900 rounded-2xl border border-slate-800/80 p-5">
+        <div class="flex items-center justify-between mb-4">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Swap</p>
+          <span class="text-sm font-bold tabular-nums" id="swap-pct-badge">—%</span>
+        </div>
+        <div class="mb-4">
+          <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
+            <div class="h-full rounded-full bar bg-amber-500" id="swap-bar" style="width:0%"></div>
+          </div>
+          <div class="flex justify-between text-xs text-slate-500 mt-1.5">
+            <span id="swap-used-label">Used —</span>
+            <span id="swap-total-label">Total —</span>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-slate-800/60 rounded-xl p-3">
+            <p class="text-xs text-slate-500 mb-1">Used</p>
+            <p class="text-base font-bold text-amber-400" id="swap-used">—</p>
+          </div>
+          <div class="bg-slate-800/60 rounded-xl p-3">
+            <p class="text-xs text-slate-500 mb-1">Free</p>
+            <p class="text-base font-bold text-emerald-400" id="swap-free">—</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Storage -->
+      <div class="card bg-slate-900 rounded-2xl border border-slate-800/80 p-5">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">Storage</p>
+        <div class="space-y-4">
+          <!-- Root -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-mono font-medium text-slate-300">/</span>
+              <span class="text-xs font-bold tabular-nums" id="root-pct-badge">—%</span>
+            </div>
+            <div class="h-2 bg-slate-800 rounded-full overflow-hidden mb-1">
+              <div class="h-full rounded-full bar bg-sky-500" id="root-bar" style="width:0%"></div>
+            </div>
+            <div class="flex justify-between text-xs text-slate-500">
+              <span id="root-used">—</span>
+              <span id="root-total">—</span>
+            </div>
+          </div>
+          <!-- Boot firmware -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-mono font-medium text-slate-300">/boot/firmware</span>
+              <span class="text-xs font-bold tabular-nums" id="boot-pct-badge">—%</span>
+            </div>
+            <div class="h-2 bg-slate-800 rounded-full overflow-hidden mb-1">
+              <div class="h-full rounded-full bar bg-cyan-500" id="boot-bar" style="width:0%"></div>
+            </div>
+            <div class="flex justify-between text-xs text-slate-500">
+              <span id="boot-used">—</span>
+              <span id="boot-total">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Row 3: Network / Services + Ports / Extras -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+      <!-- Network -->
+      <div class="card bg-slate-900 rounded-2xl border border-slate-800/80 p-5">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">Network</p>
+        <div class="space-y-4">
+          <!-- Ethernet -->
+          <div>
+            <p class="text-xs text-slate-600 mb-2">Ethernet</p>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="bg-slate-800/60 rounded-xl p-3">
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span class="text-sky-400 text-xs font-bold">↑</span>
+                  <span class="text-xs text-slate-500">Sent</span>
+                </div>
+                <p class="text-sm font-bold text-sky-400" id="eth-sent">—</p>
+              </div>
+              <div class="bg-slate-800/60 rounded-xl p-3">
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span class="text-emerald-400 text-xs font-bold">↓</span>
+                  <span class="text-xs text-slate-500">Received</span>
+                </div>
+                <p class="text-sm font-bold text-emerald-400" id="eth-recv">—</p>
+              </div>
+            </div>
+          </div>
+          <!-- WiFi -->
+          <div>
+            <p class="text-xs text-slate-600 mb-2">WiFi</p>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="bg-slate-800/60 rounded-xl p-3">
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span class="text-sky-400 text-xs font-bold">↑</span>
+                  <span class="text-xs text-slate-500">Sent</span>
+                </div>
+                <p class="text-sm font-bold text-sky-400" id="wifi-sent">—</p>
+              </div>
+              <div class="bg-slate-800/60 rounded-xl p-3">
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span class="text-emerald-400 text-xs font-bold">↓</span>
+                  <span class="text-xs text-slate-500">Received</span>
+                </div>
+                <p class="text-sm font-bold text-emerald-400" id="wifi-recv">—</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Services -->
+      <div class="card bg-slate-900 rounded-2xl border border-slate-800/80 p-5">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">Services</p>
+        <div class="space-y-1.5" id="services-list"></div>
+      </div>
+
+      <!-- Ports + Entropy -->
+      <div class="flex flex-col gap-4">
+
+        <!-- Ports -->
+        <div class="card bg-slate-900 rounded-2xl border border-slate-800/80 p-5 flex-1">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">Ports</p>
+          <div class="space-y-1.5" id="ports-list"></div>
+        </div>
+
+        <!-- Entropy -->
+        <div class="card bg-slate-900 rounded-2xl border border-slate-800/80 p-4">
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Entropy Pool</p>
+            <span class="text-xl font-bold font-mono text-indigo-400" id="entropy">—</span>
+          </div>
+          <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+            <div class="h-full rounded-full bar bg-indigo-500" id="entropy-bar" style="width:0%"></div>
+          </div>
+          <p class="text-xs text-slate-600 mt-1">of 4096 max</p>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ── Footer ──────────────────────────────────────────────────── -->
+  <footer class="border-t border-slate-800/60 mt-4 py-3 text-center">
+    <p class="text-xs text-slate-600">
+      <a href="https://github.com/zseleme/RPi-Monitor" class="hover:text-slate-400 transition-colors">RPi-Monitor</a>
+      <span class="mx-2">·</span>
+      <span id="footer-ts">—</span>
+    </p>
+  </footer>
+
+  <script>
+    /* ── Utils ──────────────────────────────────────────────────── */
+    const $ = id => document.getElementById(id);
+
+    function fmtMB(mb) {
+      if (mb == null || isNaN(mb)) return '—';
+      if (mb >= 1024) return (mb / 1024).toFixed(1) + ' GB';
+      return Math.round(mb) + ' MB';
+    }
+    function fmtBytes(b) {
+      b = Math.abs(parseFloat(b) || 0);
+      if (b >= 1e9) return (b / 1e9).toFixed(2) + ' GB';
+      if (b >= 1e6) return (b / 1e6).toFixed(1) + ' MB';
+      if (b >= 1e3) return (b / 1e3).toFixed(0) + ' KB';
+      return b + ' B';
+    }
+    function pct(used, total) {
+      if (!total) return 0;
+      return Math.min(100, Math.round(used / total * 100));
+    }
+    function fmtUptime(sec) {
+      sec = parseFloat(sec);
+      const d = Math.floor(sec / 86400);
+      const h = Math.floor((sec % 86400) / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      if (d > 0) return `${d}d ${h}h ${m}m`;
+      if (h > 0) return `${h}h ${m}m`;
+      return `${m}m`;
+    }
+    function setBar(id, p, warn = 75, crit = 90) {
+      const el = $(id);
+      if (!el) return;
+      el.style.width = p + '%';
+      el.className = el.className.replace(/bg-\w+-\d+/, '');
+      if (p >= crit)      el.classList.add('bg-red-500');
+      else if (p >= warn) el.classList.add('bg-amber-400');
+    }
+
+    /* ── Clock ──────────────────────────────────────────────────── */
+    const DAYS   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    let piTime = null;
+
+    function tickClock() {
+      const d = piTime ? new Date(piTime) : new Date();
+      if (piTime) piTime = new Date(piTime.getTime() + 1000);
+      $('clock').textContent =
+        String(d.getHours()).padStart(2,'0') + ':' +
+        String(d.getMinutes()).padStart(2,'0') + ':' +
+        String(d.getSeconds()).padStart(2,'0');
+      $('date-display').textContent =
+        DAYS[d.getDay()] + ', ' + MONTHS[d.getMonth()] + ' ' + d.getDate();
+    }
+
+    /* ── Temperature arc ────────────────────────────────────────── */
+    function updateArc(temp) {
+      const arc = $('temp-arc');
+      const p   = Math.min(1, Math.max(0, (temp - 30) / 60));  // 30–90°C range
+      arc.style.strokeDashoffset = 289 * (1 - p);
+      const color = temp < 60 ? '#22c55e' : temp < 75 ? '#f59e0b' : '#ef4444';
+      arc.style.stroke = color;
+      const el = $('soc-temp');
+      el.style.color = color;
+      $('temp-status').textContent = temp < 60 ? 'Normal' : temp < 75 ? 'Warm' : 'Hot — throttling risk';
+      $('temp-status').className = 'text-center text-xs mt-1 font-medium ' +
+        (temp < 60 ? 'text-emerald-400' : temp < 75 ? 'text-amber-400' : 'text-red-400');
+    }
+
+    /* ── Service badge ──────────────────────────────────────────── */
+    function svcBadge(state, name) {
+      const ok = state === 'active';
+      return `<div class="flex items-center justify-between px-3 py-2 rounded-lg ${ok ? 'bg-emerald-950/40 border border-emerald-900/30' : 'bg-red-950/30 border border-red-900/20'}">
+        <span class="text-xs font-medium ${ok ? 'text-slate-200' : 'text-slate-500'}">${name}</span>
+        <div class="flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full ${ok ? 'bg-emerald-400' : 'bg-red-500'}"></span>
+          <span class="text-xs font-medium ${ok ? 'text-emerald-400' : 'text-red-500'}">${ok ? 'active' : 'inactive'}</span>
+        </div>
+      </div>`;
+    }
+
+    function portBadge(state, label) {
+      const ok = state === 'active';
+      return `<div class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-800/60">
+        <span class="text-xs font-mono font-medium ${ok ? 'text-slate-200' : 'text-slate-500'}">${label}</span>
+        <span class="text-xs font-medium ${ok ? 'text-emerald-400' : 'text-slate-600'}">
+          ${ok ? '● open' : '○ closed'}
+        </span>
+      </div>`;
+    }
+
+    /* ── Static data (once) ─────────────────────────────────────── */
+    let S = {};
+    function loadStatic() {
+      fetch('static.json').then(r => r.json()).then(d => {
+        S = d;
+        $('hostname').textContent     = d.hostname || 'RPi';
+        $('processor').textContent    = d.processor || '—';
+        $('processor-short').textContent = (d.processor || '').split(' ').slice(0,4).join(' ');
+        $('distribution').textContent = d.distribution || '—';
+        $('kernel').textContent       = d.kernel_version || '—';
+        document.title = (d.hostname || 'RPi') + ' · Dashboard';
+      }).catch(() => {});
+    }
+
+    /* ── Dynamic data (every 5s) ────────────────────────────────── */
+    function loadDynamic() {
+      fetch('dynamic.json').then(r => r.json()).then(d => {
+
+        // Clock sync
+        if (d.localtime) {
+          const lt = d.localtime;
+          piTime = new Date(lt[0], lt[1]-1, lt[2], lt[3], lt[4], lt[5]);
+        }
+
+        // Uptime
+        $('uptime').textContent = fmtUptime(d.uptime);
+
+        // Upgrade
+        const upgEl = $('upgrade');
+        const hasUpd = d.upgrade && d.upgrade !== '0 upgradable(s)';
+        upgEl.textContent = d.upgrade || '0 upgradable(s)';
+        upgEl.className = 'text-sm font-semibold ' + (hasUpd ? 'text-amber-400' : 'text-emerald-400');
+
+        // CPU
+        $('load1').textContent  = parseFloat(d.load1).toFixed(2);
+        $('load5').textContent  = parseFloat(d.load5).toFixed(2);
+        $('load15').textContent = parseFloat(d.load15).toFixed(2);
+        $('cpu-freq-badge').textContent = (d.cpu_frequency || '—') + ' MHz';
+        $('cpu-voltage').textContent    = (d.cpu_voltage || '—') + ' V';
+        $('cpu-governor').textContent   = d.scaling_governor || '—';
+
+        // Temperature
+        const temp = parseFloat(d.soc_temp);
+        $('soc-temp').textContent = temp.toFixed(1);
+        updateArc(temp);
+
+        // Memory
+        const memTotal = S.memory_total || 1;
+        const memUsed  = memTotal - parseFloat(d.memory_available);
+        const memP     = pct(memUsed, memTotal);
+        $('mem-pct-badge').textContent      = memP + '%';
+        $('mem-used').textContent           = fmtMB(memUsed);
+        $('mem-available').textContent      = fmtMB(parseFloat(d.memory_available));
+        $('mem-used-label').textContent     = 'Used ' + fmtMB(memUsed);
+        $('mem-total-label').textContent    = 'Total ' + fmtMB(memTotal);
+        setBar('mem-bar', memP, 75, 90);
+
+        // Swap
+        const swapTotal = S.swap_total || 1;
+        const swapUsed  = parseFloat(d.swap_used);
+        const swapP     = pct(swapUsed, swapTotal);
+        $('swap-pct-badge').textContent     = swapP + '%';
+        $('swap-used').textContent          = fmtMB(swapUsed);
+        $('swap-free').textContent          = fmtMB(swapTotal - swapUsed);
+        $('swap-used-label').textContent    = 'Used ' + fmtMB(swapUsed);
+        $('swap-total-label').textContent   = 'Total ' + fmtMB(swapTotal);
+        setBar('swap-bar', swapP, 60, 85);
+
+        // Storage /
+        const rootTotal = S.sdcard_root_total || 1;
+        const rootUsed  = parseFloat(d.sdcard_root_used);
+        const rootP     = pct(rootUsed, rootTotal);
+        $('root-pct-badge').textContent = rootP + '%';
+        $('root-used').textContent      = 'Used: ' + fmtMB(rootUsed);
+        $('root-total').textContent     = 'Total: ' + fmtMB(rootTotal);
+        setBar('root-bar', rootP, 70, 85);
+
+        // Storage /boot/firmware
+        const bootTotal = S.boot_total || 1;
+        const bootUsed  = parseFloat(d.boot_used);
+        const bootP     = pct(bootUsed, bootTotal);
+        $('boot-pct-badge').textContent = bootP + '%';
+        $('boot-used').textContent      = 'Used: ' + fmtMB(bootUsed);
+        $('boot-total').textContent     = 'Total: ' + fmtMB(bootTotal);
+        setBar('boot-bar', bootP, 70, 85);
+
+        // Network
+        $('eth-sent').textContent  = fmtBytes(d.net_send);
+        $('eth-recv').textContent  = fmtBytes(d.net_received);
+        $('wifi-sent').textContent = fmtBytes(d.wifi_send);
+        $('wifi-recv').textContent = fmtBytes(d.wifi_received);
+
+        // Services
+        $('services-list').innerHTML = [
+          { k: 'svc_cloudflared', n: 'cloudflared' },
+          { k: 'svc_docker',      n: 'docker'      },
+          { k: 'svc_fail2ban',    n: 'fail2ban'    },
+          { k: 'svc_ssh',         n: 'ssh'         },
+          { k: 'svc_rpimonitor',  n: 'rpimonitor'  },
+        ].map(s => svcBadge(d[s.k], s.n)).join('');
+
+        // Ports
+        $('ports-list').innerHTML = [
+          { k: 'port_ssh',        l: 'SSH :2222'        },
+          { k: 'port_rpimonitor', l: 'RPiMonitor :8888' },
+          { k: 'port_docker',     l: 'Docker API :2375' },
+        ].map(p => portBadge(d[p.k], p.l)).join('');
+
+        // Entropy
+        const ent = parseInt(d.entropy_pool) || 0;
+        $('entropy').textContent = ent;
+        setBar('entropy-bar', pct(ent, 4096));
+
+        // Footer
+        const now = new Date();
+        $('footer-ts').textContent = 'Updated ' +
+          String(now.getHours()).padStart(2,'0') + ':' +
+          String(now.getMinutes()).padStart(2,'0') + ':' +
+          String(now.getSeconds()).padStart(2,'0');
+
+      }).catch(err => console.warn('[dashboard] fetch error:', err));
+    }
+
+    /* ── Init ───────────────────────────────────────────────────── */
+    loadStatic();
+    loadDynamic();
+    setInterval(loadDynamic, 5000);
+    setInterval(tickClock, 1000);
+  </script>
+</body>
+</html>
