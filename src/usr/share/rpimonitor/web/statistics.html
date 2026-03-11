@@ -197,6 +197,17 @@
         return Math.round(v/60) + 'm';
       },
     },
+    {
+      id: 'power', title: 'Power Events', icon: '⚡', subtitle: 'Undervoltage & throttling history',
+      datasets: [
+        { rrd: 'undervoltage_now', label: 'Undervoltage', color: '#ef4444', fill: true, stepped: true },
+        { rrd: 'power_throttled',  label: 'Throttling',   color: '#f59e0b', fill: false, stepped: true },
+        { rrd: 'power_freqcap',    label: 'Freq Cap',     color: '#fb923c', fill: false, stepped: true },
+      ],
+      yFormat: v => v >= 0.5 ? 'Active' : 'OK',
+      yTicks: { min: 0, max: 1.1, stepSize: 1 },
+      stepped: true,
+    },
   ];
 
   const RRAs = [
@@ -281,7 +292,8 @@
           borderColor:      c,
           backgroundColor:  c + '1a',
           fill:             ds.fill || false,
-          tension:          0.3,
+          tension:          ds.stepped ? 0 : 0.3,
+          stepped:          ds.stepped || false,
           borderWidth:      1.5,
           pointRadius:      0,
           pointHoverRadius: 4,
@@ -321,7 +333,10 @@
             border: { color: '#1e293b' },
           },
           y: {
-            ticks:  { callback: metric.yFormat, color: '#475569', maxTicksLimit: 6 },
+            ticks:  { callback: metric.yFormat, color: '#475569', maxTicksLimit: 6,
+                      ...(metric.yTicks || {}) },
+            min:    metric.yTicks ? metric.yTicks.min : undefined,
+            max:    metric.yTicks ? metric.yTicks.max : undefined,
             grid:   { color: 'rgba(148,163,184,.05)' },
             border: { color: '#1e293b' },
           },
