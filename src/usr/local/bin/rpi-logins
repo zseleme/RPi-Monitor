@@ -1,0 +1,13 @@
+#!/bin/bash
+# rpi-logins <Accepted|Failed>
+# Outputs last 3 SSH login events as: user|ip|Mon DD HH:MM;...
+journalctl _SYSTEMD_UNIT=ssh.service --no-pager -q --since '30 days ago' 2>/dev/null \
+  | grep "$1" | tail -3 \
+  | python3 -c '
+import sys
+for line in sys.stdin:
+    p = line.split()
+    if "from" in p:
+        idx = p.index("from")
+        print(p[idx-1]+"|"+p[idx+1]+"|"+p[0]+" "+p[1]+" "+p[2]+";", end="")
+'

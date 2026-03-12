@@ -345,16 +345,44 @@
       </div>
     </div>
 
-    <!-- Row 4: Power Status (full width) -->
-    <div class="card bg-slate-900 rounded-2xl border border-slate-800/80 p-5">
-      <div class="flex items-center justify-between mb-4">
-        <p class="text-xs font-semibold text-slate-500 uppercase tracking-widest">⚡ Power Status</p>
-        <div class="flex items-center gap-3">
-          <span class="text-xs font-mono text-slate-600" id="throttled-hex">—</span>
-          <a href="statistics.html" class="text-xs text-slate-500 hover:text-sky-400 transition-colors">View history →</a>
+    <!-- Row 4: Power Status + Login Activity -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+      <!-- Power Status -->
+      <div class="card bg-slate-900 rounded-2xl border border-slate-800/80 p-5">
+        <div class="flex items-center justify-between mb-4">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-widest">⚡ Power Status</p>
+          <div class="flex items-center gap-3">
+            <span class="text-xs font-mono text-slate-600" id="throttled-hex">—</span>
+            <a href="statistics.html" class="text-xs text-slate-500 hover:text-sky-400 transition-colors">View history →</a>
+          </div>
+        </div>
+        <div class="space-y-1.5" id="power-current"></div>
+      </div>
+
+      <!-- Login Activity -->
+      <div class="card bg-slate-900 rounded-2xl border border-slate-800/80 p-5">
+        <p class="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">🔐 Login Activity</p>
+        <div class="grid grid-cols-2 gap-3">
+          <!-- Successful logins -->
+          <div>
+            <div class="flex items-center gap-1.5 mb-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              <p class="text-xs font-semibold text-emerald-400">Successful</p>
+            </div>
+            <div class="space-y-1" id="logins-success"></div>
+          </div>
+          <!-- Failed logins -->
+          <div>
+            <div class="flex items-center gap-1.5 mb-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+              <p class="text-xs font-semibold text-red-400">Failed</p>
+            </div>
+            <div class="space-y-1" id="logins-failed"></div>
+          </div>
         </div>
       </div>
-      <div class="space-y-1.5" id="power-current"></div>
+
     </div>
 
   </main>
@@ -570,6 +598,26 @@
         const ent = parseInt(d.entropy_pool) || 0;
         $('entropy').textContent = ent;
         setBar('entropy-bar', pct(ent, 4096));
+
+        // Login Activity
+        function parseLogins(raw) {
+          if (!raw) return [];
+          return raw.split(';').filter(Boolean).slice(0, 3).map(e => {
+            const [user, ip, date] = e.split('|');
+            return { user: user || '?', ip: ip || '—', date: date || '—' };
+          });
+        }
+        function loginRow(l, ok) {
+          return `<div class="rounded-lg px-2.5 py-1.5 ${ok ? 'bg-emerald-950/30 border border-emerald-900/20' : 'bg-red-950/20 border border-red-900/15'}">
+            <p class="text-xs font-mono font-medium text-slate-200 truncate">${l.user}<span class="text-slate-500">@</span>${l.ip}</p>
+            <p class="text-xs text-slate-600">${l.date}</p>
+          </div>`;
+        }
+        const emptyLogin = '<p class="text-xs text-slate-700 px-1 py-1">No data</p>';
+        const successLogins = parseLogins(d.last_success);
+        const failedLogins  = parseLogins(d.last_failed);
+        $('logins-success').innerHTML = successLogins.length ? successLogins.map(l => loginRow(l, true)).join('')  : emptyLogin;
+        $('logins-failed').innerHTML  = failedLogins.length  ? failedLogins.map(l => loginRow(l, false)).join('') : emptyLogin;
 
         // Power / throttle
         const thr = parseInt(d.throttled_raw) || 0;
